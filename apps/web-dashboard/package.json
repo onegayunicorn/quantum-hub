@@ -1,0 +1,15 @@
+{
+  "name": "@quantum-hub/web-dashboard",
+  "version": "1.0.0",
+  "description": "Quantum Hub Web Dashboard — Prudent Twin Sync Flow, real-time telemetry, job management, and quantum circuit UI",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "echo 'Dashboard ready'"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "license": "MIT"
+}

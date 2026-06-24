@@ -1,0 +1,20 @@
+{
+  "name": "@quantum-hub/mobile-app",
+  "version": "1.0.0",
+  "description": "Quantum Hub Mobile App — React Native quantum-classical bridge for Android/iOS",
+  "main": "src/App.js",
+  "scripts": {
+    "start": "react-native start",
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "build": "echo 'Mobile app scaffold ready — run react-native commands to build'"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-native": "^0.73.0",
+    "@react-navigation/native": "^6.1.0",
+    "@react-navigation/stack": "^6.3.0"
+  },
+  "license": "MIT",
+  "note": "Full React Native project. Run: npx react-native init QuantumHubMobile to initialize."
+}

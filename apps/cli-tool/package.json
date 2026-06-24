@@ -1,0 +1,15 @@
+{
+  "name": "@quantum-hub/cli",
+  "version": "1.0.0",
+  "description": "Quantum Hub CLI — Edge orchestration tool for constrained devices (Termux, Moto G35)",
+  "main": "src/index.js",
+  "bin": {
+    "qhub": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js",
+    "build": "echo 'CLI built'"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quantum Hub — Sovereign Orchestration Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #080818;
+      --surface:      #0d0d2b;
+      --surface2:     #111135;
+      --border:       #1e2050;
+      --accent:       #00d4ff;
+      --accent2:      #7c3aed;
+      --green:        #00ff88;
+      --yellow:       #fbbf24;
+      --red:          #ef4444;
+      --text:         #e2e8f0;
+      --text-muted:   #64748b;
+      --text-dim:     #334155;
+      --glow:         0 0 20px rgba(0,212,255,0.15);
+      --glow-green:   0 0 20px rgba(0,255,136,0.15);
+    }
+
+    html, body { height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    .app { display: grid; grid-template-rows: 56px 1fr; height: 100vh; }
+    .main { display: grid; grid-template-columns: 220px 1fr; overflow: hidden; }
+    .content { overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+
+    /* ── Header ───────────────────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; padding: 0 24px; gap: 16px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      position: relative; z-index: 10;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { font-size: 22px; }
+    .logo-text { font-size: 16px; font-weight: 700; color: var(--accent); letter-spacing: 0.05em; }
+    .logo-sub { font-size: 10px; color: var(--text-muted); letter-spacing: 0.15em; text-transform: uppercase; }
+    .header-spacer { flex: 1; }
+    .status-pill {
+      display: flex; align-items: center; gap: 6px; padding: 4px 12px;
+      border-radius: 20px; border: 1px solid var(--border); background: var(--surface2);
+      font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+    .dot-red { background: var(--red); }
+    .dot-yellow { background: var(--yellow); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .header-time { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted); }
+
+    /* ── Sidebar ──────────────────────────────────────────────────────────── */
+    .sidebar {
+      background: var(--surface); border-right: 1px solid var(--border);
+      padding: 20px 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto;
+    }
+    .nav-section { padding: 8px 16px 4px; font-size: 10px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 9px 20px;
+      cursor: pointer; border-radius: 0; transition: all 0.15s; font-size: 13px; color: var(--text-muted);
+      border-left: 3px solid transparent;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: rgba(0,212,255,0.06); color: var(--accent); border-left-color: var(--accent); }
+    .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+
+    /* ── Cards ────────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px; box-shadow: var(--glow);
+    }
+    .card-title { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 16px; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
+
+    /* ── Metric Cards ─────────────────────────────────────────────────────── */
+    .metric {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .metric-value { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1; }
+    .metric-unit { font-size: 12px; color: var(--text-muted); }
+    .metric-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    .metric-bar { height: 3px; border-radius: 2px; background: var(--border); margin-top: 8px; overflow: hidden; }
+    .metric-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+    /* ── Grid Layouts ─────────────────────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+    /* ── Chart Container ──────────────────────────────────────────────────── */
+    .chart-wrap { position: relative; height: 200px; }
+
+    /* ── Table ────────────────────────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { text-align: left; padding: 8px 12px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 10px; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 12px; border-bottom: 1px solid rgba(30,32,80,0.5); color: var(--text); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(0,212,255,0.03); }
+
+    /* ── Badges ───────────────────────────────────────────────────────────── */
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; }
+    .badge-green { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.2); }
+    .badge-blue { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+    .badge-yellow { background: rgba(251,191,36,0.1); color: var(--yellow); border: 1px solid rgba(251,191,36,0.2); }
+    .badge-red { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+    .badge-purple { background: rgba(124,58,237,0.1); color: #a78bfa; border: 1px solid rgba(124,58,237,0.2); }
+
+    /* ── Buttons ──────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+      border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+      border: none; transition: all 0.15s; letter-spacing: 0.03em;
+    }
+    .btn-primary { background: var(--accent); color: var(--bg); }
+    .btn-primary:hover { background: #00b8d9; box-shadow: 0 0 16px rgba(0,212,255,0.4); }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Form ─────────────────────────────────────────────────────────────── */
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-label { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .form-input, .form-select {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 12px; color: var(--text); font-size: 13px; font-family: 'JetBrains Mono', monospace;
+      outline: none; transition: border-color 0.15s;
+    }
+    .form-input:focus, .form-select:focus { border-color: var(--accent); }
+    .form-select option { background: var(--surface2); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
+
+    /* ── Code Block ───────────────────────────────────────────────────────── */
+    .code-block {
+      background: #050510; border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: #7dd3fc; line-height: 1.6; max-height: 280px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all;
+    }
+
+    /* ── Coherence Ring ───────────────────────────────────────────────────── */
+    .coherence-ring { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .ring-svg { transform: rotate(-90deg); }
+    .ring-track { fill: none; stroke: var(--border); stroke-width: 8; }
+    .ring-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease; }
+    .ring-label { text-align: center; }
+    .ring-value { font-size: 32px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .ring-sub { font-size: 11px; color: var(--text-muted); }
+
+    /* ── Log Stream ───────────────────────────────────────────────────────── */
+    .log-stream {
+      background: #050510; border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px;
+    }
+    .log-line { display: flex; gap: 8px; }
+    .log-time { color: var(--text-dim); flex-shrink: 0; }
+    .log-msg-info { color: var(--accent); }
+    .log-msg-warn { color: var(--yellow); }
+    .log-msg-error { color: var(--red); }
+    .log-msg-success { color: var(--green); }
+
+    /* ── Provider Cards ───────────────────────────────────────────────────── */
+    .provider-card {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .provider-name { font-size: 13px; font-weight: 600; }
+    .provider-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 12px; }
+
+    /* ── Page Sections ────────────────────────────────────────────────────── */
+    .page { display: none; flex-direction: column; gap: 24px; }
+    .page.active { display: flex; }
+
+    /* ── Scrollbar ────────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .form-row { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header>
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <div>
+        <div class="logo-text">Quantum Hub</div>
+        <div class="logo-sub">Sovereign Orchestration Platform</div>
+      </div>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="status-pill">
+      <div class="dot" id="ws-dot" style="background:var(--red)"></div>
+      <span id="ws-status">CONNECTING</span>
+    </div>
+    <div class="status-pill">
+      <div class="dot dot-green"></div>
+      <span style="color:var(--green)">ChronosOS</span>
+    </div>
+    <div class="header-time" id="clock">--:--:--</div>
+  </header>
+
+  <div class="main">
+
+    <!-- ── Sidebar ──────────────────────────────────────────────────────── -->
+    <nav class="sidebar">
+      <div class="nav-section">Monitor</div>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="nav-icon">◈</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('telemetry')">
+        <span class="nav-icon">⚡</span> Telemetry
+      </div>
+
+      <div class="nav-section">Quantum</div>
+      <div class="nav-item" onclick="showPage('jobs')">
+        <span class="nav-icon">⚛</span> Jobs
+      </div>
+      <div class="nav-item" onclick="showPage('compiler')">
+        <span class="nav-icon">⌥</span> Circuit Compiler
+      </div>
+      <div class="nav-item" onclick="showPage('providers')">
+        <span class="nav-icon">☁</span> Providers
+      </div>
+
+      <div class="nav-section">System</div>
+      <div class="nav-item" onclick="showPage('devices')">
+        <span class="nav-icon">⊞</span> H2S Devices
+      </div>
+      <div class="nav-item" onclick="showPage('agent')">
+        <span class="nav-icon">◎</span> Omega Agent
+      </div>
+      <div class="nav-item" onclick="showPage('state')">
+        <span class="nav-icon">⊗</span> State Sync
+      </div>
+    </nav>
+
+    <!-- ── Content ──────────────────────────────────────────────────────── -->
+    <div class="content">
+
+      <!-- ── Dashboard Page ─────────────────────────────────────────────── -->
+      <div class="page active" id="page-dashboard">
+
+        <!-- KPI Row -->
+        <div class="grid-4">
+          <div class="metric">
+            <div class="metric-value" id="kpi-coherence" style="color:var(--accent)">—</div>
+            <div class="metric-unit">%</div>
+            <div class="metric-label">Coherence Level</div>
+            <div class="metric-bar"><div class="metric-bar-fill" id="bar-coherence" style="background:var(--accent);width:0%"></div></div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="kpi-jobs" style="color:var(--green)">0</div>
+            <div class="metric-unit">total</div>
+            <div class="metric-label">Jobs Processed</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="kpi-queue" style="color:var(--yellow)">0</div>
+            <div class="metric-unit">pending</div>
+            <div class="metric-label">Queue Depth</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="kpi-risk" style="color:var(--green)">—</div>
+            <div class="metric-unit">%</div>
+            <div class="metric-label">Decoherence Risk</div>
+            <div class="metric-bar"><div class="metric-bar-fill" id="bar-risk" style="background:var(--green);width:0%"></div></div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Coherence Over Time</div>
+            <div class="chart-wrap"><canvas id="chart-coherence"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Environmental Factors</div>
+            <div class="chart-wrap"><canvas id="chart-env"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Bottom Row -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">System Log</div>
+            <div class="log-stream" id="log-stream">
+              <div class="log-line"><span class="log-time">--:--:--</span><span class="log-msg-info">Connecting to Quantum Gateway...</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Quick Actions</div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">
+              <button class="btn btn-primary" onclick="submitQuickJob()">⚛ Submit Bell State Job</button>
+              <button class="btn btn-secondary" onclick="loadProviders()">☁ Refresh Providers</button>
+              <button class="btn btn-secondary" onclick="loadDevices()">⊞ Refresh Devices</button>
+              <button class="btn btn-secondary" onclick="loadAgentStatus()">◎ Refresh Agent</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Telemetry Page ──────────────────────────────────────────────── -->
+      <div class="page" id="page-telemetry">
+        <div class="grid-2">
+          <div class="card" style="display:flex;align-items:center;justify-content:center;padding:32px;">
+            <div class="coherence-ring">
+              <svg class="ring-svg" width="160" height="160" viewBox="0 0 160 160">
+                <circle class="ring-track" cx="80" cy="80" r="68"/>
+                <circle class="ring-fill" id="ring-fill" cx="80" cy="80" r="68"
+                  stroke="var(--accent)"
+                  stroke-dasharray="427"
+                  stroke-dashoffset="427"/>
+              </svg>
+              <div class="ring-label">
+                <div class="ring-value" id="ring-value" style="color:var(--accent)">—</div>
+                <div class="ring-sub">Coherence Level</div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Environmental Metrics</div>
+            <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+              <div id="tel-rows"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Telemetry History (last 50 samples)</div>
+          <div class="chart-wrap" style="height:250px;"><canvas id="chart-history"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ── Jobs Page ──────────────────────────────────────────────────── -->
+      <div class="page" id="page-jobs">
+        <div class="card">
+          <div class="card-title">Submit Quantum Job</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Algorithm</label>
+              <select class="form-select" id="job-algorithm">
+                <option value="VQE">VQE — Variational Quantum Eigensolver</option>
+                <option value="QAOA">QAOA — Quantum Approx. Optimization</option>
+                <option value="QFT">QFT — Quantum Fourier Transform</option>
+                <option value="custom">Custom Circuit</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Qubits</label>
+              <input class="form-input" type="number" id="job-qubits" value="4" min="1" max="20" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Shots</label>
+              <input class="form-input" type="number" id="job-shots" value="1024" min="1" max="8192" />
+            </div>
+            <button class="btn btn-primary" onclick="submitJob()">⚛ Submit</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Recent Jobs</div>
+          <table>
+            <thead><tr><th>Job ID</th><th>Algorithm</th><th>Qubits</th><th>Status</th><th>Provider</th><th>Created</th></tr></thead>
+            <tbody id="jobs-table-body"><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No jobs yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Circuit Compiler Page ───────────────────────────────────────── -->
+      <div class="page" id="page-compiler">
+        <div class="card">
+          <div class="card-title">Quantum Circuit Compiler</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Circuit Preset</label>
+              <select class="form-select" id="compile-preset">
+                <option value="bell">Bell State (2 qubits)</option>
+                <option value="ghz">GHZ State (3 qubits)</option>
+                <option value="qft">QFT (3 qubits)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Optimization Level</label>
+              <select class="form-select" id="compile-opt">
+                <option value="0">Level 0 — None</option>
+                <option value="1" selected>Level 1 — Basic</option>
+                <option value="2">Level 2 — Aggressive</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Num Qubits</label>
+              <input class="form-input" type="number" id="compile-qubits" value="3" min="2" max="10" />
+            </div>
+            <button class="btn btn-primary" onclick="compileCircuit()">⌥ Compile</button>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Compilation Metadata</div>
+            <div id="compile-meta" style="display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">OpenQASM Output</div>
+            <div class="code-block" id="qasm-output">// Compile a circuit to see OpenQASM output</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Providers Page ─────────────────────────────────────────────── -->
+      <div class="page" id="page-providers">
+        <div class="card">
+          <div class="card-title">Quantum Service Registry</div>
+          <div id="providers-grid" class="card-grid"></div>
+        </div>
+      </div>
+
+      <!-- ── H2S Devices Page ────────────────────────────────────────────── -->
+      <div class="page" id="page-devices">
+        <div class="card">
+          <div class="card-title">Installed Devices</div>
+          <div id="installed-devices" style="color:var(--text-muted);font-size:13px;">No devices installed</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Hardware Catalog (H2S)</div>
+          <div id="device-catalog" class="card-grid"></div>
+        </div>
+      </div>
+
+      <!-- ── Omega Agent Page ────────────────────────────────────────────── -->
+      <div class="page" id="page-agent">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Agent Status</div>
+            <div id="agent-status" style="display:flex;flex-direction:column;gap:10px;font-size:13px;"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Submit Agent Task</div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div class="form-group">
+                <label class="form-label">Task Type</label>
+                <select class="form-select" id="agent-task-type">
+                  <option value="ORCHESTRATION">Orchestration</option>
+                  <option value="DATA_ANALYSIS">Data Analysis</option>
+                  <option value="SCHEDULE">Schedule</option>
+                  <option value="ALERT">Alert</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Priority (1–10)</label>
+                <input class="form-input" type="number" id="agent-priority" value="5" min="1" max="10" />
+              </div>
+              <button class="btn btn-primary" onclick="submitAgentTask()">◎ Submit Task</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── State Sync Page ─────────────────────────────────────────────── -->
+      <div class="page" id="page-state">
+        <div class="card">
+          <div class="card-title">Global State Sync (Chronos Mesh)</div>
+          <div class="code-block" id="state-output">Loading state...</div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ── Configuration ────────────────────────────────────────────────────────────
+const GATEWAY = 'http://localhost:3001';
+const WS_URL  = 'ws://localhost:3001/ws/telemetry';
+
+// ── State ────────────────────────────────────────────────────────────────────
+let ws = null;
+let telemetryHistory = [];
+let recentJobs = [];
+let coherenceChart = null;
+let envChart = null;
+let historyChart = null;
+
+// ── Clock ────────────────────────────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}, 1000);
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes(name)) n.classList.add('active');
+  });
+  // Load data for specific pages
+  if (name === 'providers') loadProviders();
+  if (name === 'devices') loadDevices();
+  if (name === 'agent') loadAgentStatus();
+  if (name === 'state') loadState();
+  if (name === 'telemetry') loadTelemetryHistory();
+}
+
+// ── API Helper ───────────────────────────────────────────────────────────────
+async function api(method, path, body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(GATEWAY + path, opts);
+  return res.json();
+}
+
+// ── Log ──────────────────────────────────────────────────────────────────────
+function log(msg, type = 'info') {
+  const stream = document.getElementById('log-stream');
+  const time = new Date().toLocaleTimeString();
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">${time}</span><span class="log-msg-${type}">${msg}</span>`;
+  stream.appendChild(line);
+  stream.scrollTop = stream.scrollHeight;
+  if (stream.children.length > 100) stream.removeChild(stream.firstChild);
+}
+
+// ── WebSocket ────────────────────────────────────────────────────────────────
+function connectWS() {
+  ws = new WebSocket(WS_URL);
+  const dot = document.getElementById('ws-dot');
+  const status = document.getElementById('ws-status');
+
+  ws.onopen = () => {
+    dot.style.background = 'var(--green)';
+    dot.style.boxShadow = '0 0 6px var(--green)';
+    status.textContent = 'LIVE';
+    status.style.color = 'var(--green)';
+    log('Connected to Quantum Gateway WebSocket', 'success');
+  };
+
+  ws.onclose = () => {
+    dot.style.background = 'var(--red)';
+    dot.style.boxShadow = 'none';
+    status.textContent = 'OFFLINE';
+    status.style.color = 'var(--red)';
+    log('WebSocket disconnected. Reconnecting...', 'warn');
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => {
+    log('WebSocket error — is the API Gateway running?', 'error');
+  };
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    if (msg.type === 'telemetry' || msg.type === 'snapshot') {
+      updateTelemetry(msg.data);
+    } else if (msg.type === 'job_completed') {
+      handleJobCompleted(msg.data);
+    }
+  };
+}
+
+// ── Telemetry Update ─────────────────────────────────────────────────────────
+function updateTelemetry(t) {
+  telemetryHistory.push(t);
+  if (telemetryHistory.length > 60) telemetryHistory.shift();
+
+  const coh = (t.coherenceLevel * 100).toFixed(1);
+  const risk = (t.decoherenceRisk * 100).toFixed(1);
+  const riskColor = t.decoherenceRisk > 0.7 ? 'var(--red)' : t.decoherenceRisk > 0.4 ? 'var(--yellow)' : 'var(--green)';
+
+  // KPIs
+  document.getElementById('kpi-coherence').textContent = coh;
+  document.getElementById('bar-coherence').style.width = coh + '%';
+  document.getElementById('kpi-jobs').textContent = t.jobsProcessed || 0;
+  document.getElementById('kpi-risk').textContent = risk;
+  document.getElementById('kpi-risk').style.color = riskColor;
+  document.getElementById('bar-risk').style.width = risk + '%';
+  document.getElementById('bar-risk').style.background = riskColor;
+
+  // Coherence ring
+  const circumference = 427;
+  const offset = circumference - (t.coherenceLevel * circumference);
+  document.getElementById('ring-fill').style.strokeDashoffset = offset;
+  document.getElementById('ring-value').textContent = coh + '%';
+  document.getElementById('ring-fill').style.stroke = t.coherenceLevel > 0.9 ? 'var(--green)' : t.coherenceLevel > 0.75 ? 'var(--yellow)' : 'var(--red)';
+
+  // Telemetry rows
+  document.getElementById('tel-rows').innerHTML = [
+    ['Temperature', t.temperature?.toFixed(2), '°C', 'var(--accent2)'],
+    ['Humidity', t.humidity?.toFixed(2), '%', 'var(--accent)'],
+    ['Magnetic Flux', t.magneticFlux?.toFixed(5), 'T', 'var(--yellow)'],
+    ['CPU Usage', t.cpuUsage?.toFixed(1), '%', 'var(--green)'],
+    ['Memory Usage', t.memoryUsage?.toFixed(1), '%', 'var(--text-muted)'],
+    ['Jobs Processed', t.jobsProcessed, '', 'var(--green)'],
+    ['Jobs Failed', t.jobsFailed, '', 'var(--red)'],
+  ].map(([label, val, unit, color]) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+      <span style="color:var(--text-muted);font-size:12px;">${label}</span>
+      <span style="color:${color};font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;">${val}${unit}</span>
+    </div>
+  `).join('');
+
+  // Update charts
+  updateCoherenceChart(t);
+  updateEnvChart(t);
+}
+
+// ── Charts ───────────────────────────────────────────────────────────────────
+function initCharts() {
+  const chartDefaults = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#64748b', font: { size: 11 } } } },
+    scales: {
+      x: { ticks: { color: '#334155', maxTicksLimit: 8 }, grid: { color: '#1e2050' } },
+      y: { ticks: { color: '#334155' }, grid: { color: '#1e2050' } },
+    },
+    animation: { duration: 300 },
+  };
+
+  coherenceChart = new Chart(document.getElementById('chart-coherence'), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Coherence %', data: [], borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.05)',
+        fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2,
+      }],
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min: 80, max: 100 } } },
+  });
+
+  envChart = new Chart(document.getElementById('chart-env'), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label: 'Temperature °C', data: [], borderColor: '#7c3aed', fill: false, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+        { label: 'Humidity %', data: [], borderColor: '#00ff88', fill: false, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+        { label: 'Risk %', data: [], borderColor: '#ef4444', fill: false, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+      ],
+    },
+    options: chartDefaults,
+  });
+}
+
+function updateCoherenceChart(t) {
+  if (!coherenceChart) return;
+  const label = new Date(t.timestamp).toLocaleTimeString();
+  coherenceChart.data.labels.push(label);
+  coherenceChart.data.datasets[0].data.push((t.coherenceLevel * 100).toFixed(2));
+  if (coherenceChart.data.labels.length > 40) {
+    coherenceChart.data.labels.shift();
+    coherenceChart.data.datasets[0].data.shift();
+  }
+  coherenceChart.update('none');
+}
+
+function updateEnvChart(t) {
+  if (!envChart) return;
+  const label = new Date(t.timestamp).toLocaleTimeString();
+  envChart.data.labels.push(label);
+  envChart.data.datasets[0].data.push(t.temperature?.toFixed(1));
+  envChart.data.datasets[1].data.push(t.humidity?.toFixed(1));
+  envChart.data.datasets[2].data.push((t.decoherenceRisk * 100).toFixed(1));
+  if (envChart.data.labels.length > 40) {
+    envChart.data.labels.shift();
+    envChart.data.datasets.forEach(d => d.data.shift());
+  }
+  envChart.update('none');
+}
+
+async function loadTelemetryHistory() {
+  try {
+    const history = await api('GET', '/api/telemetry/history?limit=50');
+    if (!historyChart) {
+      historyChart = new Chart(document.getElementById('chart-history'), {
+        type: 'line',
+        data: {
+          labels: history.map(t => new Date(t.timestamp).toLocaleTimeString()),
+          datasets: [
+            { label: 'Coherence %', data: history.map(t => (t.coherenceLevel * 100).toFixed(2)), borderColor: '#00d4ff', fill: false, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+            { label: 'Decoherence Risk %', data: history.map(t => (t.decoherenceRisk * 100).toFixed(2)), borderColor: '#ef4444', fill: false, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#64748b', font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { color: '#334155', maxTicksLimit: 10 }, grid: { color: '#1e2050' } },
+            y: { ticks: { color: '#334155' }, grid: { color: '#1e2050' }, min: 0, max: 100 },
+          },
+        },
+      });
+    }
+  } catch (e) { log('Could not load telemetry history', 'warn'); }
+}
+
+// ── Jobs ─────────────────────────────────────────────────────────────────────
+async function submitJob() {
+  const algorithm = document.getElementById('job-algorithm').value;
+  const qubits = parseInt(document.getElementById('job-qubits').value);
+  const shots = parseInt(document.getElementById('job-shots').value);
+  try {
+    const result = await api('POST', '/api/jobs', { algorithm, qubits, shots, circuit: `${algorithm}_${qubits}q` });
+    log(`Job submitted: ${result.jobId} | ${algorithm} | ${qubits}q`, 'success');
+    recentJobs.unshift({ ...result, algorithm, qubits });
+    renderJobsTable();
+    // Poll for result
+    setTimeout(() => pollJob(result.jobId), 500);
+  } catch (e) { log('Job submission failed: ' + e.message, 'error'); }
+}
+
+async function submitQuickJob() {
+  showPage('jobs');
+  document.getElementById('job-algorithm').value = 'custom';
+  document.getElementById('job-qubits').value = '2';
+  await submitJob();
+}
+
+async function pollJob(jobId) {
+  try {
+    const job = await api('GET', `/api/jobs/${jobId}`);
+    const idx = recentJobs.findIndex(j => j.jobId === jobId);
+    if (idx >= 0) { recentJobs[idx] = { ...recentJobs[idx], ...job }; renderJobsTable(); }
+    if (['PENDING','QUEUED','RUNNING'].includes(job.status)) setTimeout(() => pollJob(jobId), 800);
+    else log(`Job ${jobId} → ${job.status}`, job.status === 'COMPLETED' ? 'success' : 'warn');
+  } catch (e) {}
+}
+
+function handleJobCompleted(data) {
+  log(`Job completed via WS: ${data.jobId}`, 'success');
+  document.getElementById('kpi-queue').textContent = Math.max(0, parseInt(document.getElementById('kpi-queue').textContent) - 1);
+}
+
+function renderJobsTable() {
+  const tbody = document.getElementById('jobs-table-body');
+  if (!recentJobs.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No jobs yet</td></tr>'; return; }
+  tbody.innerHTML = recentJobs.slice(0, 15).map(j => {
+    const statusClass = j.status === 'COMPLETED' ? 'badge-green' : j.status === 'RUNNING' ? 'badge-blue' : j.status === 'FAILED' ? 'badge-red' : 'badge-yellow';
+    return `<tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${j.jobId || j.id || '—'}</td>
+      <td>${j.algorithm || '—'}</td>
+      <td>${j.qubits || '—'}</td>
+      <td><span class="badge ${statusClass}">${j.status || '—'}</span></td>
+      <td>${j.provider || j.result?.provider || '—'}</td>
+      <td style="color:var(--text-muted);font-size:11px;">${j.createdAt ? new Date(j.createdAt).toLocaleTimeString() : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Circuit Compiler ──────────────────────────────────────────────────────────
+async function compileCircuit() {
+  const preset = document.getElementById('compile-preset').value;
+  const opt = parseInt(document.getElementById('compile-opt').value);
+  const qubits = parseInt(document.getElementById('compile-qubits').value);
+  try {
+    const result = await api('POST', '/api/compile', { preset, numQubits: qubits, optimizationLevel: opt });
+    document.getElementById('qasm-output').textContent = result.qasm || '// No output';
+    const meta = result.metadata || {};
+    document.getElementById('compile-meta').innerHTML = [
+      ['Compiler', meta.compiler],
+      ['Target Backend', meta.targetBackend],
+      ['Optimization Level', `L${meta.optimizationLevel}`],
+      ['Circuit Depth', result.circuit?.metadata?.depth],
+      ['Gates Removed', result.circuit?.metadata?.gatesRemoved || 0],
+      ['Error Mitigation', result.circuit?.metadata?.errorMitigation?.method || 'None'],
+      ['Compiled At', meta.compiledAt ? new Date(meta.compiledAt).toLocaleTimeString() : '—'],
+    ].map(([k, v]) => `
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text-muted);font-size:12px;">${k}</span>
+        <span style="color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;">${v || '—'}</span>
+      </div>
+    `).join('');
+    log(`Circuit compiled: ${preset} | ${qubits}q | L${opt}`, 'success');
+  } catch (e) { log('Compile failed: ' + e.message, 'error'); }
+}
+
+// ── Providers ─────────────────────────────────────────────────────────────────
+async function loadProviders() {
+  try {
+    const providers = await api('GET', '/api/providers');
+    document.getElementById('providers-grid').innerHTML = providers.map(p => `
+      <div class="provider-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="provider-name">${p.name}</div>
+          <span class="badge ${p.available ? 'badge-green' : 'badge-red'}">${p.available ? 'ONLINE' : 'OFFLINE'}</span>
+        </div>
+        <div class="provider-meta">
+          <span>⚛ ${p.maxQubits} qubits</span>
+          <span>⚡ ${p.latencyMs}ms</span>
+          <span>🔊 ${p.noiseModel}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">${p.id}</div>
+        <span class="badge badge-purple">${p.type}</span>
+      </div>
+    `).join('');
+  } catch (e) { log('Could not load providers', 'warn'); }
+}
+
+// ── H2S Devices ───────────────────────────────────────────────────────────────
+async function loadDevices() {
+  try {
+    const data = await api('GET', '/api/devices');
+    const installed = data.installed || [];
+    document.getElementById('installed-devices').innerHTML = installed.length
+      ? `<table><thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Status</th><th>Installed</th></tr></thead><tbody>${
+          installed.map(d => `<tr>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${d.id}</td>
+            <td>${d.name}</td>
+            <td><span class="badge badge-purple">${d.type}</span></td>
+            <td><span class="badge ${d.status === 'ONLINE' ? 'badge-green' : 'badge-yellow'}">${d.status}</span></td>
+            <td style="color:var(--text-muted);font-size:11px;">${d.installedAt ? new Date(d.installedAt).toLocaleTimeString() : '—'}</td>
+          </tr>`).join('')
+        }</tbody></table>`
+      : '<span style="color:var(--text-muted);font-size:13px;">No devices installed. Install from the catalog below.</span>';
+
+    document.getElementById('device-catalog').innerHTML = (data.catalog || []).map(d => `
+      <div class="provider-card">
+        <div class="provider-name">${d.name}</div>
+        <span class="badge badge-purple">${d.type}</span>
+        <div class="provider-meta">${(d.capabilities || []).slice(0, 3).join(' · ')}</div>
+        <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="installDevice('${d.id}')">⊞ Install</button>
+      </div>
+    `).join('');
+  } catch (e) { log('Could not load devices', 'warn'); }
+}
+
+async function installDevice(deviceId) {
+  log(`Installing device: ${deviceId}...`, 'info');
+  try {
+    const device = await api('POST', `/api/devices/${deviceId}/install`);
+    log(`Device installed: ${device.name}`, 'success');
+    loadDevices();
+  } catch (e) { log('Install failed: ' + e.message, 'error'); }
+}
+
+// ── Agent ─────────────────────────────────────────────────────────────────────
+async function loadAgentStatus() {
+  try {
+    const agent = await api('GET', '/api/agent');
+    document.getElementById('agent-status').innerHTML = [
+      ['Agent ID', agent.agentId],
+      ['Name', agent.name],
+      ['State', agent.state],
+      ['Queue', agent.queueLength + ' tasks'],
+      ['Completed', agent.completedTasks + ' tasks'],
+      ['Capabilities', (agent.capabilities || []).join(', ')],
+    ].map(([k, v]) => `
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text-muted);font-size:12px;">${k}</span>
+        <span style="color:var(--text);font-size:12px;text-align:right;max-width:60%;">${v || '—'}</span>
+      </div>
+    `).join('');
+  } catch (e) { log('Could not load agent status', 'warn'); }
+}
+
+async function submitAgentTask() {
+  const type = document.getElementById('agent-task-type').value;
+  const priority = parseInt(document.getElementById('agent-priority').value);
+  try {
+    const result = await api('POST', '/api/agent/tasks', { type, priority, payload: { steps: ['analyze', 'route', 'execute'] } });
+    log(`Agent task submitted: ${result.id} | ${type} | P${priority}`, 'success');
+    setTimeout(loadAgentStatus, 1000);
+  } catch (e) { log('Agent task failed: ' + e.message, 'error'); }
+}
+
+// ── State Sync ────────────────────────────────────────────────────────────────
+async function loadState() {
+  try {
+    const state = await api('GET', '/api/state');
+    document.getElementById('state-output').textContent = JSON.stringify(state, null, 2);
+  } catch (e) { document.getElementById('state-output').textContent = 'Could not load state.'; }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  initCharts();
+  connectWS();
+  loadProviders();
+
+  // Auto-refresh state every 5s
+  setInterval(() => {
+    const activePage = document.querySelector('.page.active')?.id;
+    if (activePage === 'page-state') loadState();
+  }, 5000);
+});
+</script>
+</body>
+</html>

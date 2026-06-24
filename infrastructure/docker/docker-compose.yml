@@ -1,0 +1,113 @@
+version: '3.9'
+
+# ─── Quantum Hub — Docker Compose Stack ─────────────────────────────────────
+# Runs the full quantum ecosystem locally:
+#   - API Gateway (port 3001)
+#   - Web Dashboard (port 3000)
+#   - PostgreSQL (primary storage)
+#   - Redis (caching + pub/sub)
+#   - ClickHouse (real-time analytics)
+#   - Traefik (reverse proxy)
+
+services:
+
+  # ── API Gateway ─────────────────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ../../apps/api-gateway
+      dockerfile: Dockerfile
+    container_name: quantum-api-gateway
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://quantum:quantum@postgres:5432/quantumhub
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.quantum.local`)"
+
+  # ── Web Dashboard ────────────────────────────────────────────────────────────
+  web-dashboard:
+    build:
+      context: ../../apps/web-dashboard
+      dockerfile: Dockerfile
+    container_name: quantum-dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - GATEWAY_URL=http://api-gateway:3001
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`quantum.local`)"
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: quantum-postgres
+    environment:
+      POSTGRES_USER: quantum
+      POSTGRES_PASSWORD: quantum
+      POSTGRES_DB: quantumhub
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: quantum-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # ── ClickHouse (Real-time Analytics) ─────────────────────────────────────────
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: quantum-clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    restart: unless-stopped
+
+  # ── Traefik Reverse Proxy ─────────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.0
+    container_name: quantum-traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  clickhouse_data:
+
+networks:
+  default:
+    name: quantum-network

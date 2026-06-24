@@ -1,0 +1,10 @@
+{
+  "name": "@quantum-hub/ai-agent",
+  "version": "1.0.0",
+  "description": "Omega AI Agent and Gemma AI integration for sovereign quantum orchestration",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "echo 'AI agent built'"
+  },
+  "license": "MIT"
+}

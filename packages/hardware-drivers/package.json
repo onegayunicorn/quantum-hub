@@ -1,0 +1,10 @@
+{
+  "name": "@quantum-hub/hardware-drivers",
+  "version": "1.0.0",
+  "description": "H2S (Hardware-to-Software) abstraction layer for VR/XR, edge nodes, and holographic devices",
+  "main": "src/H2SManager.js",
+  "scripts": {
+    "build": "echo 'Hardware drivers built'"
+  },
+  "license": "MIT"
+}

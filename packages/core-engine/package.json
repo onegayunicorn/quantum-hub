@@ -1,0 +1,12 @@
+{
+  "name": "@quantum-hub/core-engine",
+  "version": "1.0.0",
+  "description": "Sovereign Quantum Orchestration Core Engine — hybrid classical-quantum execution, telemetry, and state sync",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node src/tests/index.test.js",
+    "build": "echo 'Core engine built'"
+  },
+  "keywords": ["quantum", "orchestration", "hybrid", "engine"],
+  "license": "MIT"
+}

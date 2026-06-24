@@ -1,0 +1,25 @@
+{
+  "name": "quantum-hub",
+  "version": "1.0.0",
+  "description": "Sovereign Quantum-Bio-AI Unified Platform — a multi-platform quantum orchestration ecosystem",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "dashboard": "cd apps/web-dashboard && npm run dev",
+    "gateway": "cd apps/api-gateway && npm run dev",
+    "cli": "cd apps/cli-tool && node src/index.js"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

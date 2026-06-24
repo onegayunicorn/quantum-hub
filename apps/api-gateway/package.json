@@ -1,0 +1,18 @@
+{
+  "name": "@quantum-hub/api-gateway",
+  "version": "1.0.0",
+  "description": "Quantum Hub API Gateway — Quantum Service Registry, job routing, telemetry streaming, and REST API",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node src/index.js",
+    "start": "node src/index.js",
+    "build": "echo 'API Gateway ready'"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^4.22.2",
+    "uuid": "^9.0.1",
+    "ws": "^8.21.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@quantum-hub/desktop-app",
+  "version": "1.0.0",
+  "description": "Quantum Hub Desktop App — Electron-based quantum orchestration desktop client",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build": "echo 'Desktop app scaffold ready — run electron-builder to package'"
+  },
+  "dependencies": {
+    "electron": "^28.0.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.quantumhub.desktop",
+    "productName": "Quantum Hub",
+    "directories": { "output": "dist" },
+    "mac": { "category": "public.app-category.developer-tools" },
+    "win": { "target": "nsis" },
+    "linux": { "target": "AppImage" }
+  },
+  "license": "MIT"
+}
